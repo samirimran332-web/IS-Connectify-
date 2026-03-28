@@ -1,0 +1,5 @@
+{
+  "name": "IS connectify",
+  "description": "An AI-powered application for students, news updates, and media generation. Created by Imran Samir.",
+  "requestFramePermissions": ["camera", "microphone", "geolocation"]
+}

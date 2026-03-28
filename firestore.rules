@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: news
+    // Document ID: auto-generated
+    // Fields:
+    //   - title: string (required, 1-200 chars)
+    //   - content: string (required, 1-5000 chars)
+    //   - authorName: string (required, 1-100 chars)
+    //   - authorUid: string (required, matches auth.uid)
+    //   - createdAt: timestamp (required)
+    //   - imageUrl: string (optional, valid URL)
+    //
+    // ===============================================================
+
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "samirimran332@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidNews(data) {
+      return data.keys().hasAll(['title', 'content', 'authorName', 'authorUid', 'createdAt']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() > 0 && data.content.size() <= 5000 &&
+             data.authorName is string && data.authorName.size() > 0 && data.authorName.size() <= 100 &&
+             data.authorUid == request.auth.uid &&
+             data.createdAt is timestamp &&
+             (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 500));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['displayName', 'email']) &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100 &&
+             data.email is string && data.email.size() > 0 && data.email.size() <= 100 &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 1000)) &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 500)) &&
+             (!('role' in data) || (data.role in ['user', 'admin'])) &&
+             (!('studentClass' in data) || (data.studentClass is string && data.studentClass.size() <= 50)) &&
+             (!('department' in data) || (data.department in ['Science', 'Commerce', 'Arts', 'None']));
+    }
+
+    match /news/{newsId} {
+      allow read: if true; // Publicly readable news
+      allow create: if isAuthenticated() && isValidNews(request.resource.data);
+      allow update, delete: if isAdmin() || isOwner(resource.data.authorUid);
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role == 'user';
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && (request.resource.data.role == resource.data.role || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    match /tasks/{taskId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.keys().hasAll(['title', 'userId', 'completed', 'createdAt']) &&
+                    request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+                    request.resource.data.completed is bool;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid &&
+                    request.resource.data.userId == resource.data.userId;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /study_sessions/{sessionId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid &&
+                    request.resource.data.keys().hasAll(['userId', 'title', 'messages', 'createdAt']) &&
+                    request.resource.data.title is string && request.resource.data.title.size() > 0 &&
+                    request.resource.data.messages is list;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid &&
+                    request.resource.data.userId == resource.data.userId &&
+                    request.resource.data.messages is list;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /groups/{groupId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.createdBy == request.auth.uid;
+    }
+
+    match /group_members/{memberId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || 
+                                                     get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.createdBy == request.auth.uid);
+    }
+
+    match /group_resources/{resourceId} {
+      function isMember(groupId) {
+        return exists(/databases/$(database)/documents/group_members/$(request.auth.uid + "_" + groupId));
+      }
+      allow read: if isAuthenticated() && isMember(resource.data.groupId);
+      allow create: if isAuthenticated() && isMember(request.resource.data.groupId) && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && isMember(resource.data.groupId) && 
+                               (resource.data.createdBy == request.auth.uid || 
+                                get(/databases/$(database)/documents/groups/$(resource.data.groupId)).data.createdBy == request.auth.uid);
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

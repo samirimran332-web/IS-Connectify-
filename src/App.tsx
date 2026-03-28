@@ -600,7 +600,8 @@ export default function App() {
 
   return (
     <div className={cn(
-      "min-h-screen font-sans transition-colors duration-300",
+      "min-h-[100dvh] flex flex-col lg:block font-sans transition-colors duration-300",
+      (activeTab === 'study' || activeTab === 'media') ? "h-[100dvh] overflow-hidden" : "",
       theme === 'dark' ? "bg-slate-950 text-slate-50" : "bg-slate-50 text-slate-900"
     )}>
       <AnimatePresence>
@@ -634,7 +635,7 @@ export default function App() {
       
       {/* Mobile Header */}
       <header className={cn(
-        "lg:hidden h-16 border-b flex items-center justify-between px-4 sticky top-0 z-50 transition-colors",
+        "lg:hidden h-16 shrink-0 border-b flex items-center justify-between px-4 sticky top-0 z-50 transition-colors",
         theme === 'dark' ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"
       )}>
         <div className="flex items-center gap-2">
@@ -693,6 +694,25 @@ export default function App() {
               <NavItem icon={<User />} label="Profile" active={activeTab === 'profile'} theme={theme} onClick={() => { setActiveTab('profile'); setIsSidebarOpen(false); }} />
               <NavItem icon={<Settings />} label="Settings" active={activeTab === 'settings'} theme={theme} onClick={() => { setActiveTab('settings'); setIsSidebarOpen(false); }} />
               <NavItem 
+                icon={<Share2 />} 
+                label="Invite Friends" 
+                active={false} 
+                theme={theme}
+                onClick={() => { 
+                  if (navigator.share) {
+                    navigator.share({
+                      title: 'IS Connectify',
+                      text: 'Join me on IS Connectify, an AI-powered platform!',
+                      url: window.location.href,
+                    }).catch(console.error);
+                  } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    toast.success('Link copied to clipboard!');
+                  }
+                  setIsSidebarOpen(false); 
+                }} 
+              />
+              <NavItem 
                 icon={<MessageCircle />} 
                 label="Support" 
                 active={false} 
@@ -747,8 +767,14 @@ export default function App() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="lg:ml-72 min-h-screen p-4 lg:p-8">
-        <div className="max-w-5xl mx-auto">
+      <main className={cn(
+        "flex-1 lg:ml-72 lg:min-h-screen transition-all duration-300 flex flex-col relative",
+        (activeTab === 'study' || activeTab === 'media') ? "p-0 lg:p-4 overflow-hidden h-[100dvh] lg:h-auto" : "p-4 lg:p-8"
+      )}>
+        <div className={cn(
+          "mx-auto w-full flex-1 transition-all duration-300 flex flex-col relative",
+          (activeTab === 'study' || activeTab === 'media') ? "max-w-[1600px] h-full overflow-hidden" : "max-w-5xl"
+        )}>
           <AnimatePresence mode="wait">
             {activeTab === 'home' && <HomeView key="home" onStart={() => setActiveTab('study')} />}
             {activeTab === 'study' && <StudyView key="study" user={user} customApiKey={customApiKey} />}
@@ -1228,10 +1254,11 @@ function StudyView({ user, customApiKey }: { user: FirebaseUser | null, customAp
     }
   };
 
-  const handleSend = async () => {
-    if ((!input.trim() && attachedFiles.length === 0) || loading || !user) return;
+  const handleSend = async (text?: string) => {
+    const messageText = typeof text === 'string' ? text : input;
+    if ((!messageText.trim() && attachedFiles.length === 0) || loading || !user) return;
     
-    const userMsg = input;
+    const userMsg = messageText;
     const currentFiles = [...attachedFiles];
     const newMessages = [...messages, { role: 'user' as const, content: userMsg }];
     setInput('');
@@ -1277,36 +1304,40 @@ function StudyView({ user, customApiKey }: { user: FirebaseUser | null, customAp
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex flex-col h-[calc(100vh-8rem)]"
+      className="flex-1 flex flex-col w-full bg-slate-50/50 dark:bg-slate-950/50 lg:bg-transparent overflow-hidden"
     >
-      <div className="mb-6 flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-2">
-            <BookOpen className="text-indigo-600" />
-            Study Assistant
-          </h2>
-          <p className="text-slate-500 text-sm">Ask anything about your studies, from math to literature.</p>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 p-4 md:p-6 border-b md:border border-indigo-100 dark:border-indigo-900/50 md:rounded-2xl mb-0 md:mb-6 shrink-0">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="p-2 bg-indigo-600 text-white rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none shrink-0">
+            <BookOpen className="w-5 h-5 md:w-6 md:h-6" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-xl md:text-3xl font-black tracking-tight text-indigo-900 dark:text-indigo-100">
+              Study Assistant
+            </h2>
+            <p className="hidden md:block text-indigo-600/80 dark:text-indigo-400/80 text-sm mt-1 font-medium">Your personal AI tutor for math, science, literature, and more.</p>
+          </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
           <Button 
             variant="outline" 
             size="icon" 
-            className="md:hidden"
+            className="md:hidden border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 shrink-0"
             onClick={() => setShowHistory(!showHistory)}
           >
-            <Clock className="w-4 h-4" />
+            <Clock className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           </Button>
-          <Button onClick={startNewChat} variant="outline" className="gap-2">
-            <Plus className="w-4 h-4" /> <span className="hidden sm:inline">New Chat</span>
+          <Button onClick={startNewChat} className="gap-2 flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-200 dark:shadow-none">
+            <Plus className="w-4 h-4" /> <span>New Chat</span>
           </Button>
         </div>
       </div>
 
-      <div className="flex-1 flex gap-6 overflow-hidden relative">
+      <div className="flex-1 flex gap-0 md:gap-6 overflow-hidden relative h-[calc(100dvh-140px)] md:h-full">
         {/* Sidebar for History */}
         <Card className={cn(
-          "w-64 flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 transition-all duration-300 z-30",
-          "md:relative md:translate-x-0 absolute inset-y-0 left-0 shadow-xl md:shadow-none",
+          "w-64 flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-900 border-r md:border border-slate-200 dark:border-slate-800 transition-all duration-300 z-30 rounded-none md:rounded-2xl",
+          "md:relative md:translate-x-0 absolute inset-y-0 left-0 shadow-2xl md:shadow-none",
           showHistory ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}>
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
@@ -1357,16 +1388,39 @@ function StudyView({ user, customApiKey }: { user: FirebaseUser | null, customAp
         </Card>
 
         {/* Chat Area */}
-        <Card className="flex-1 flex flex-col p-0 overflow-hidden bg-slate-50/50 dark:bg-slate-950/50">
+        <Card className="flex-1 flex flex-col p-0 overflow-hidden bg-slate-50/50 dark:bg-slate-950/50 border-0 md:border rounded-none md:rounded-2xl shadow-none md:shadow-sm h-full relative z-10">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && (
-              <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-                <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
-                  <Brain className="text-indigo-600 dark:text-indigo-400 w-8 h-8" />
+              <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-8">
+                <div className="space-y-4">
+                  <div className="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto shadow-xl shadow-indigo-200 dark:shadow-none rotate-3">
+                    <Brain className="text-white w-10 h-10 -rotate-3" />
+                  </div>
+                  <div>
+                    <h3 className="font-black text-2xl text-slate-800 dark:text-slate-100">How can I help you today?</h3>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto mt-2">I can explain complex topics, solve math problems, or help you brainstorm ideas.</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">How can I help you today?</h3>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs">Try asking: "Explain photosynthesis" or "Help me with a math problem"</p>
+                
+                <div className="w-full max-w-2xl">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4">Suggested Topics</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {[
+                      { icon: <Waves className="w-4 h-4" />, text: 'Explain photosynthesis' },
+                      { icon: <BookOpen className="w-4 h-4" />, text: 'Summarize the French Revolution' },
+                      { icon: <CheckCircle2 className="w-4 h-4" />, text: 'Help me with algebra' },
+                      { icon: <Sparkles className="w-4 h-4" />, text: 'How to write a good essay' }
+                    ].map((topic, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleSend(topic.text)}
+                        className="flex items-center gap-2 px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-700 dark:hover:text-indigo-300 transition-all shadow-sm hover:shadow"
+                      >
+                        <span className="text-indigo-500">{topic.icon}</span>
+                        {topic.text}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -1425,7 +1479,7 @@ function StudyView({ user, customApiKey }: { user: FirebaseUser | null, customAp
             <div ref={scrollRef} />
           </div>
 
-          <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 space-y-4">
+          <div className="p-4 pb-24 md:pb-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 space-y-4 shrink-0 z-20">
             {attachedFiles.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {attachedFiles.map((file, idx) => (
@@ -1461,7 +1515,7 @@ function StudyView({ user, customApiKey }: { user: FirebaseUser | null, customAp
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
               />
-              <Button onClick={handleSend} disabled={loading}>
+              <Button onClick={() => handleSend()} disabled={loading}>
                 <Send className="w-4 h-4" />
               </Button>
             </div>
@@ -1734,7 +1788,7 @@ function MediaView({ customApiKey }: { customApiKey: string }) {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-8 max-w-7xl mx-auto"
+      className="space-y-8 max-w-7xl mx-auto p-4 md:p-0 pb-24"
     >
       <div className="text-center space-y-2">
         <h2 className="text-4xl font-black tracking-tighter uppercase font-display">AI Studio</h2>
@@ -1827,29 +1881,31 @@ function MediaView({ customApiKey }: { customApiKey: string }) {
                 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {[
-                    { val: '1:1', label: 'Square', class: 'aspect-square', hideInVideo: true },
-                    { val: '16:9', label: 'Landscape', class: 'aspect-video', hideInVideo: false },
-                    { val: '9:16', label: 'Portrait', class: 'aspect-[9/16]', hideInVideo: false },
-                    { val: '4:3', label: 'Classic', class: 'aspect-[4/3]', hideInVideo: true }
+                    { val: '1:1', label: 'Square', class: 'aspect-square w-8 h-8', hideInVideo: true },
+                    { val: '16:9', label: 'Landscape', class: 'aspect-video w-10 h-6', hideInVideo: false },
+                    { val: '9:16', label: 'Portrait', class: 'aspect-[9/16] w-6 h-10', hideInVideo: false },
+                    { val: '4:3', label: 'Classic', class: 'aspect-[4/3] w-9 h-7', hideInVideo: true }
                   ].filter(r => activeMediaTab === 'image' || !r.hideInVideo).map((ratio) => (
                     <button
                       key={ratio.val}
                       onClick={() => setAspectRatio(ratio.val)}
                       className={cn(
-                        "flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all",
+                        "flex flex-col items-center justify-center gap-3 p-4 rounded-xl border-2 transition-all group",
                         aspectRatio === ratio.val 
-                          ? "border-indigo-600 bg-indigo-50/50" 
-                          : "border-slate-100 hover:border-slate-200 bg-white"
+                          ? "border-indigo-600 bg-indigo-50/50 shadow-sm" 
+                          : "border-slate-100 hover:border-indigo-200 bg-white"
                       )}
                     >
-                      <div className={cn(
-                        "w-10 bg-slate-200 rounded-sm border border-slate-300 shadow-inner transition-all",
-                        ratio.class,
-                        aspectRatio === ratio.val ? "bg-indigo-200 border-indigo-300" : ""
-                      )} />
+                      <div className="h-10 flex items-center justify-center">
+                        <div className={cn(
+                          "bg-slate-200 rounded-sm border border-slate-300 shadow-inner transition-all group-hover:bg-indigo-100 group-hover:border-indigo-300",
+                          ratio.class,
+                          aspectRatio === ratio.val ? "bg-indigo-200 border-indigo-400" : ""
+                        )} />
+                      </div>
                       <span className={cn(
                         "text-[10px] font-bold uppercase tracking-tighter",
-                        aspectRatio === ratio.val ? "text-indigo-700" : "text-slate-500"
+                        aspectRatio === ratio.val ? "text-indigo-700" : "text-slate-500 group-hover:text-indigo-600"
                       )}>
                         {ratio.label}
                       </span>
@@ -1975,8 +2031,19 @@ function MediaView({ customApiKey }: { customApiKey: string }) {
                   <p className="text-sm text-slate-500 max-w-xs mx-auto">
                     {activeMediaTab === 'image' 
                       ? 'Our AI is processing your prompt to create a unique high-fidelity image.' 
-                      : 'Veo is generating high-quality video frames. This may take a few minutes.'}
+                      : 'Veo is generating high-quality video frames. This may take 1-3 minutes. Please do not close this tab.'}
                   </p>
+                  {activeMediaTab === 'video' && (
+                    <div className="mt-4 p-3 bg-indigo-50 rounded-lg border border-indigo-100">
+                      <p className="text-xs font-bold text-indigo-700 uppercase tracking-widest mb-1">Status</p>
+                      <p className="text-sm text-indigo-600">
+                        {progress < 20 ? 'Initializing rendering engine...' : 
+                         progress < 50 ? 'Generating base frames...' : 
+                         progress < 80 ? 'Applying cinematic effects...' : 
+                         'Finalizing video output...'}
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <div className="w-full max-w-xs h-1.5 bg-slate-100 rounded-full overflow-hidden">
                   <motion.div 
@@ -2085,13 +2152,16 @@ function MediaView({ customApiKey }: { customApiKey: string }) {
                 </div>
                 
                 {/* Visual Aspect Ratio Placeholder */}
-                <div className="mt-8 flex justify-center">
+                <div className="mt-12 flex justify-center items-center h-64 w-full">
                   <div className={cn(
-                    "w-32 bg-slate-100 border-2 border-dashed border-slate-200 rounded-lg transition-all duration-500 opacity-50",
-                    aspectRatio === '1:1' ? 'aspect-square' : 
-                    aspectRatio === '16:9' ? 'aspect-video' : 
-                    aspectRatio === '9:16' ? 'aspect-[9/16]' : 'aspect-[4/3]'
-                  )} />
+                    "bg-slate-100 border-2 border-dashed border-slate-300 rounded-xl transition-all duration-500 opacity-80 flex items-center justify-center relative overflow-hidden shadow-inner",
+                    aspectRatio === '1:1' ? 'w-48 h-48' : 
+                    aspectRatio === '16:9' ? 'w-64 h-36' : 
+                    aspectRatio === '9:16' ? 'w-36 h-64' : 'w-56 h-42'
+                  )}>
+                    <div className="absolute inset-0 bg-gradient-to-br from-transparent to-slate-200/50" />
+                    <span className="text-slate-400 font-bold text-sm z-10 uppercase tracking-widest">{aspectRatio} Preview</span>
+                  </div>
                 </div>
               </div>
             )}

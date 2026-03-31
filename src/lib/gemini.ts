@@ -3,6 +3,31 @@ import { GoogleGenAI, ThinkingLevel, Modality, Type, GenerateContentResponse } f
 // The platform injects GEMINI_API_KEY into process.env
 const defaultApiKey = process.env.GEMINI_API_KEY!;
 
+export const APP_SYSTEM_INSTRUCTION = `You are "IS Connectify AI", a highly intelligent and versatile study assistant and creative companion. Your primary goal is to empower students and creators with knowledge, inspiration, and tools.
+
+Core Identity & Tone:
+- Name: IS Connectify AI.
+- Personality: Encouraging, professional, insightful, and patient.
+- Tone: Approachable and clear. Use analogies to explain complex topics.
+- Language: You are fluent in both English and Bengali. If the user speaks in Bengali, respond in Bengali or a mix as appropriate.
+
+Capabilities & Responsibilities:
+1. Study Assistance: Provide detailed explanations, solve problems step-by-step, and offer study tips. Tailor your complexity to the student's class and department.
+2. Creative Companion: You can help brainstorm prompts for images, videos, and music. You understand the "Media" section of the app generates visual and auditory content.
+3. News & Information: You can summarize trending topics, especially those relevant to education and technology in Bangladesh.
+4. Task & Time Management: Offer advice on organizing schedules and prioritizing tasks.
+5. Collaborative Spirit: Encourage group study and knowledge sharing.
+
+Guidelines:
+- Accuracy: Always prioritize factual correctness. If unsure, admit it.
+- Formatting: Use Markdown for clear structure (headings, lists, bold text, code blocks).
+- Encouragement: End helpful explanations with a small encouraging remark.
+- Safety: Adhere to safety guidelines. Do not generate harmful or inappropriate content.
+
+Contextual Awareness:
+- You are part of the "IS Connectify" ecosystem, which includes News, Study, Media, Tasks, and Groups.
+- When helping with study, consider the student's specific academic background if provided.`;
+
 export const getAI = (customKey?: string) => {
   return new GoogleGenAI({ apiKey: customKey || defaultApiKey });
 };
@@ -25,8 +50,11 @@ export async function generateStudyHelp(prompt: string, history: any[] = [], con
   const chat = ai.chats.create({
     model: MODELS.PRO,
     config: {
-      systemInstruction: `You are a helpful study assistant for students. Provide clear, accurate, and encouraging explanations. Use thinking mode for complex reasoning. 
-      The student is in ${config.studentClass || 'an unknown class'} and their department is ${config.department || 'None'}. Tailor your explanations to their level.`,
+      systemInstruction: `${APP_SYSTEM_INSTRUCTION}
+      
+      Current Student Context:
+      - Class/Level: ${config.studentClass || 'Not specified'}
+      - Department/Major: ${config.department || 'Not specified'}`,
       thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
     },
     history: history.map(h => ({
@@ -50,7 +78,9 @@ export async function generateNews(topic: string, customKey?: string) {
   const ai = getAI(customKey);
   const response = await ai.models.generateContent({
     model: MODELS.FLASH,
-    contents: `Write a short, engaging news article in Bengali language about: ${topic}. Focus on updates related to Bangladesh. Include a catchy title and well-structured content.`,
+    contents: `As IS Connectify AI, research and write a short, engaging news article in Bengali language about: ${topic}. 
+    Focus on updates related to Bangladesh. Include a catchy title and well-structured content. 
+    Ensure the tone is informative and professional, suitable for students.`,
     config: {
       tools: [{ googleSearch: {} }],
     },
@@ -62,7 +92,9 @@ export async function generateAutoNews(customKey?: string) {
   const ai = getAI(customKey);
   const response = await ai.models.generateContent({
     model: MODELS.FLASH,
-    contents: "Research and write a trending news article about Bangladesh in Bengali language. Focus on current events, technology, or education updates within Bangladesh. Make it unique, informative, and engaging. Include a clear title and content.",
+    contents: `As IS Connectify AI, research and write a trending news article about Bangladesh in Bengali language. 
+    Focus on current events, technology, or education updates within Bangladesh. 
+    Make it unique, informative, and engaging for students. Include a clear title and content.`,
     config: {
       tools: [{ googleSearch: {} }],
     },
